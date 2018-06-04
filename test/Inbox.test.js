@@ -5,11 +5,10 @@ const Web3 = require('web3');
 const provider = ganache.provider();
 const web3 = new Web3(provider);
 
-const { interface, bytecode } = require('../compile');
+const { interface, bytecode } = require('../compile').lottery;
 
 let accounts;
-let inbox;
-let inboxChanged;
+let lottery;
 // Infura API : 1GBYLXJ42UwX5aC5uyZU
 
 beforeEach(async () => {
@@ -17,28 +16,31 @@ beforeEach(async () => {
   accounts = await web3.eth.getAccounts();
   // Use one of those accounts to deploy the contract
   // deploy to a local test network / real test network (Rinkeby)
-  inbox = await new web3.eth.Contract(JSON.parse(interface))
-    .deploy({ data: bytecode, arguments: ['Hi there!'] })
+  lottery = await new web3.eth.Contract(JSON.parse(interface))
+    .deploy({ data: bytecode })
     .send({ from: accounts[0], gas: '1000000' });
 
-  inbox.setProvider(provider);
+  lottery.setProvider(provider);
 });
 
-describe('Inbox', () => {
+describe('Lottery Contract', () => {
 
   it('deploys a contract', () => {
-    assert.ok(inbox.options.address);
+    assert.ok(lottery.options.address);
   });
 
-  it('has a default message', async () => {
-    const message = await inbox.methods.message().call();
-    assert.equal(message, 'Hi there!');
+  it('allows one account to enter', async () => {
+    await lottery.methods.enter().send({
+      from: accounts[0],
+      value: web3.utils.toWei('0.02', 'ether')
+    });
+    const players = await lottery.methods.getPlayer().call({
+      from: accounts[0]
+    });
+
+    assert.equal(accounts[0], players[0]);
+    assert.equal(1, players.length);
   });
 
-  it('can change mmessage', async () => {
-    await inbox.methods.setMessage('By there !').send({ from: accounts[0], gas: '1000000' });
-    const message = await inbox.methods.message().call();
-    assert.equal(message,'By there !');
-  });
 
 });
